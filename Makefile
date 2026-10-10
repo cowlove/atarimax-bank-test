@@ -1,11 +1,10 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-SDK_CONFIG ?= $(HOME)/build/llvm-mos-sdk-atarimax128/mos-platform/build/install/bin/mos-atari8-cart-atarimax128.cfg
-MOS_CLANG ?= $(HOME)/opt/llvm-mos-sdk-v23.3.0/bin/mos-clang
-CART ?= $(HOME)/opt/atari800-7.2.1/bin/cart
+MOS_CLANG ?= $(HOME)/opt/llvm-mos/bin/mos-atari8-cart-atarimax128-clang
+CART ?= $(HOME)/opt/atari800-screen-dump/bin/cart
 ATARI800 ?= $(HOME)/opt/atari800-screen-dump/bin/atari800
-ATARI_CONFIG ?= /tmp/atarimax-emulator-test.cfg
+ATARI_CONFIG ?= $(HOME)/opt/atari800-screen-dump/etc/atarimax-emulator-test.cfg
 RUN_ID := $(shell date +%Y%m%d-%H%M%S)
 
 BUILD_DIR := build
@@ -36,8 +35,7 @@ $(BUILD_DIR):
 
 $(ROM): minimal.c | $(BUILD_DIR)
 	@test -x "$(MOS_CLANG)" || { echo "Missing compiler: $(MOS_CLANG)" >&2; exit 1; }
-	@test -f "$(SDK_CONFIG)" || { echo "Missing target config: $(SDK_CONFIG)" >&2; exit 1; }
-	"$(MOS_CLANG)" --config "$(SDK_CONFIG)" "$<" -o "$@" -Wl,-Map,"$(MAP)"
+	"$(MOS_CLANG)" "$<" -o "$@" -Wl,-Map,"$(MAP)"
 
 $(CAR_IMAGE): $(ROM)
 	@test -x "$(CART)" || { echo "Missing Atari800 cart converter: $(CART)" >&2; exit 1; }
@@ -45,8 +43,7 @@ $(CAR_IMAGE): $(ROM)
 
 $(FAIL_ROM): minimal.c | $(BUILD_DIR)
 	@test -x "$(MOS_CLANG)" || { echo "Missing compiler: $(MOS_CLANG)" >&2; exit 1; }
-	@test -f "$(SDK_CONFIG)" || { echo "Missing target config: $(SDK_CONFIG)" >&2; exit 1; }
-	"$(MOS_CLANG)" --config "$(SDK_CONFIG)" -DTEST_FORCE_FAIL "$<" -o "$@" -Wl,-Map,"$(FAIL_MAP)"
+	"$(MOS_CLANG)" -DTEST_FORCE_FAIL "$<" -o "$@" -Wl,-Map,"$(FAIL_MAP)"
 
 $(FAIL_CAR): $(FAIL_ROM)
 	@test -x "$(CART)" || { echo "Missing Atari800 cart converter: $(CART)" >&2; exit 1; }
