@@ -42,16 +42,29 @@ DEFINE_BANK_PROBE(13)
 DEFINE_BANK_PROBE(14)
 DEFINE_BANK_PROBE(15)
 
+long cioErrors = 0;
 void resetWdt() {
-    int fd = open("J1:DUMPSCREEN", O_CREAT | O_WRONLY);
-    if( fd > 0) {
-        close(fd);
+    *_0x0600 = 0xde;
+}
+
+void testCio(int count) { 
+    while(count-- > 0) { 
+        int fd = open("J1:DUMPSCREEN", O_CREAT | O_WRONLY);
+        if( fd > 0) {
+            close(fd);
+        } else { 
+            cioErrors++;
+        }
+        resetWdt();
     }
 }
 
-int main(void) {
-  for (;;) {
-    for (uint16_t call = 0; call < CALLS_PER_REPORT; ++call) {
+long cartBankErrors = 0;
+void testCartBank(int totalCalls) { 
+    for (uint8_t bank = 0; bank < 16; ++bank) {
+      bank_calls[bank] = 0;
+    }
+    for (uint16_t call = 0; call < totalCalls; ++call) {
       CALL_BANK(0);
       CALL_BANK(1);
       CALL_BANK(2);
@@ -68,35 +81,78 @@ int main(void) {
       CALL_BANK(13);
       CALL_BANK(14);
       CALL_BANK(15);
+      resetWdt();
     }
 
-    uint8_t errors = 0;
     for (uint8_t bank = 0; bank < 16; ++bank) {
-      if (bank_calls[bank] != CALLS_PER_REPORT) {
-        ++errors;
+      if (bank_calls[bank] != totalCalls) {
+        ++cartBankErrors;
       }
     }
+}
 
-#ifdef TEST_FORCE_FAIL
-    errors = 1;
-#endif
+long osErrors = 0;
+void testOs(int count) {
+    uint8_t origC000 = *osC;
+    // TODO - antic still tries to access the default character set and puts garbage on the screen
+    // need to copy the default character set someplace else
 
-    const char *status = errors == 0 ? "PASS" : "FAIL";
-    printf("%s %s %s\n", status, status, status);
-    printf("B0-15: %u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
-           (unsigned)bank_calls[0], (unsigned)bank_calls[1],
-           (unsigned)bank_calls[2], (unsigned)bank_calls[3],
-           (unsigned)bank_calls[4], (unsigned)bank_calls[5],
-           (unsigned)bank_calls[6], (unsigned)bank_calls[7],
-           (unsigned)bank_calls[8], (unsigned)bank_calls[9],
-           (unsigned)bank_calls[10], (unsigned)bank_calls[11],
-           (unsigned)bank_calls[12], (unsigned)bank_calls[13],
-           (unsigned)bank_calls[14], (unsigned)bank_calls[15]);
+        for (long n = 0; n < count; n++) {
+            uint8_t osC000 = *osC;
+            __asm("sei");
+            *nmien = 0;
+            *portb = 0xfe; // turn OS off
+            uint8_t noC000 = *osC;
+            if (n > 0 && noC000 != 0xee) osErrors++;
+            *osC = 0xee;
+            *portb = 0xff; // turn OS on
+            __asm("cli");
+            *nmien = 192;
+            *osC = 0x11; // ROM write should be ignored
+            osC000 = *osC;
+            if (osC000 != origC000) osErrors++;
+            //for(int delay = 0; delay < 10000; delay++) {} // add delay for 130XE with no READY halt
+            resetWdt();
+        }
+}
+long memErrors = 0;
+void testExtMem(int count, int v) { 
+    while(count-- > 0) { 
+        for(int i = 0; i < 32; i++) {
+                *portb = 0x83 | (i << 2);
+                *_0x4000 = i;
+                *portb = 0xff;
+        }
+        if (v) printf("extmem:\n");
+        for(int i = 0; i < 32; i++) {
+                *portb = 0x83 | (i << 2);
+                uint8_t got = *_0x4000;
+                *portb = 0xff;
 
-    for (uint8_t bank = 0; bank < 16; ++bank) {
-      bank_calls[bank] = 0;
+                uint8_t expected = 0x18 | (i & 0x3);
+                if ((i & 0x4) != 0) expected = 31;
+                if (got != expected) memErrors++;
+                if (v) { 
+                    //printf("extmem test %d  %02x %02x\n", i, expected, got);
+                    printf("%02x:%02x ", i, got);
+                    if ((i & 0x3) == 0x3) printf("\n");
+                }
+        }
+        if (v) printf("\n");
     }
-    resetWdt();
-    *_0x0600 = 0xde;
-  }
+}
+
+
+int main() { 
+    long loopCount = 0;
+    testExtMem(1, 1);
+    while(1) { 
+        testCartBank(1800);
+        testCio(300);
+        testOs(1000);
+        testExtMem(100, 0);
+        printf("%ld: cio: %ld cart: %ld os: %ld ext: %ld\n", 
+                loopCount, cioErrors, cartBankErrors, osErrors, memErrors);
+        loopCount++;
+    }
 }

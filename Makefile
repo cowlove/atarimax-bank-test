@@ -16,9 +16,9 @@ FAIL_CAR := $(BUILD_DIR)/atarimax-bank-test-force-fail.car
 FAIL_MAP := $(BUILD_DIR)/atarimax-bank-test-force-fail.map
 EMU_OUTPUT := $(BUILD_DIR)/emulator-$(RUN_ID).txt
 SCREEN_TEXT := $(BUILD_DIR)/screen-$(RUN_ID).txt
-DUMP_SECONDS ?= 10
+DUMP_SECONDS ?= 20
 HOST_TIMEOUT ?= 30s
-ATARI_FLAGS ?=
+ATARI_FLAGS ?= -turbo
 EXPECTED_RESULT ?= PASS
 MIN_STATUS_MATCHES ?= 2
 
@@ -35,7 +35,7 @@ $(BUILD_DIR):
 
 $(ROM): minimal.c | $(BUILD_DIR)
 	@test -x "$(MOS_CLANG)" || { echo "Missing compiler: $(MOS_CLANG)" >&2; exit 1; }
-	"$(MOS_CLANG)" "$<" -o "$@" -Wl,-Map,"$(MAP)"
+	"$(MOS_CLANG)" "$<" -Oz -o "$@" -Wl,-Map,"$(MAP)"
 
 $(CAR_IMAGE): $(ROM)
 	@test -x "$(CART)" || { echo "Missing Atari800 cart converter: $(CART)" >&2; exit 1; }
