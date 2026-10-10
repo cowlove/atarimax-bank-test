@@ -123,18 +123,29 @@ void testExtMem(int count, int v) {
                 *_0x4000 = i;
                 *portb = 0xff;
         }
+        *_0x4000 = 0xff;
+
         if (v) printf("extmem:\n");
         for(int i = 0; i < 32; i++) {
                 *portb = 0x83 | (i << 2);
-                uint8_t got = *_0x4000;
+                uint8_t expected, got = *_0x4000;
                 *portb = 0xff;
 
-                uint8_t expected = 0x18 | (i & 0x3);
-                if ((i & 0x4) != 0) expected = 31;
+                // Atari 130XE bank switch  
+                //expected = 0x18 | (i & 0x3);
+                //if ((i & 0x4) != 0) expected = 0xff;
+               
+                // Rambo256 bank layout 
+                expected = (i & 0x1f);
+                if ((i & 0x4) != 0) expected = 0xff;
+                
+                // Stock XL with no banks
+                //expected = 0xff;
+
                 if (got != expected) memErrors++;
                 if (v) { 
                     //printf("extmem test %d  %02x %02x\n", i, expected, got);
-                    printf("%02x:%02x ", i, got);
+                    printf("%02x:%02x=%02x ", i, expected, got);
                     if ((i & 0x3) == 0x3) printf("\n");
                 }
         }

@@ -59,7 +59,7 @@ test: package
 	@set -eu; \
 	echo "Running Atari800 headlessly for $(DUMP_SECONDS) emulated seconds (host timeout $(HOST_TIMEOUT))..."; \
 	SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy timeout "$(HOST_TIMEOUT)" "$(ATARI800)" \
-	  -config "$(ATARI_CONFIG)" -no-autosave-config -xe \
+	  -config "$(ATARI_CONFIG)" -no-autosave-config -rambo \
 	  -cart "$(abspath $(CAR_IMAGE))" -cart-type 41 $(ATARI_FLAGS) \
 	  -dump-screen-after "$(DUMP_SECONDS)" > "$(EMU_OUTPUT)" 2>&1; \
 	awk '/^Graphics 0 screen at / { capture = 1; next } capture && rows < 24 { print; rows++ }' "$(EMU_OUTPUT)" > "$(SCREEN_TEXT)"; \
